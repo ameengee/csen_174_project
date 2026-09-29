@@ -1,0 +1,24 @@
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONPATH=/app/src
+
+WORKDIR /app
+
+# Python dependencies (prod + dev/test)
+COPY requirements/prod.txt /requirements/prod.txt
+COPY requirements/local.txt /requirements/local.txt
+
+RUN pip install --upgrade pip \
+  && pip install -r /requirements/local.txt
+
+# Application code + tests
+COPY src /app/src
+COPY tests /app/tests
+COPY pyproject.toml /app/pyproject.toml
+COPY scripts /app/scripts
+
+RUN chmod +x /app/scripts/ci/*.sh
+
+CMD ["scripts/ci/unit.sh"]

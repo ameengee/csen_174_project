@@ -1,0 +1,10 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/dockerfiles/Dockerfile.test
+    image: csen174-backend:test
+    container_name: csen174-backend-test
+
+    environment:
+      - APP_ENV=test

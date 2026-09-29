@@ -1,0 +1,50 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/dockerfiles/Dockerfile.local
+    image: csen174-backend:local
+    container_name: csen174-backend-api
+
+    env_file:
+      - ../env/.env.local
+
+    ports:
+      - "8000:8000"
+
+    # Mount source so uvicorn --reload picks up edits without a rebuild.
+    volumes:
+      - ../../src:/app/src
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  db:
+    image: postgres:16
+    container_name: csen174-backend-db
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d app" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

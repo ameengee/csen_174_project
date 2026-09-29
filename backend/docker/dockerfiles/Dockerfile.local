@@ -1,0 +1,40 @@
+FROM python:3.11-slim-bookworm
+
+# ---- System setup ----
+ENV PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONUNBUFFERED=1 \
+  PYTHONPATH=/app/src
+
+WORKDIR /app
+
+# ---- OS dependencies ----
+RUN apt-get update && apt-get install -y \
+  curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# ---- Python dependencies ----
+COPY requirements/prod.txt /requirements/prod.txt
+COPY requirements/local.txt /requirements/local.txt
+
+RUN pip install --upgrade pip \
+  && pip install -r /requirements/local.txt
+
+# ---- Application code ----
+COPY src /app/src
+COPY tests /app/tests
+COPY scripts /app/scripts
+COPY pyproject.toml /app/pyproject.toml
+
+RUN chmod +x /app/scripts/ci/*.sh
+
+# ---- Docker runtime scripts ----
+COPY docker/entrypoint.sh /docker/entrypoint.sh
+COPY docker/start.sh /docker/start.sh
+
+RUN chmod +x /docker/entrypoint.sh /docker/start.sh
+
+# ---- Runtime ----
+EXPOSE 8000
+
+ENTRYPOINT ["/docker/entrypoint.sh"]
+CMD ["/docker/start.sh"]
