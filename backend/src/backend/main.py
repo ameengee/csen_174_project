@@ -10,7 +10,12 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from backend.clients import close_clients, init_clients
 from backend.configs.constants import API_VERSION
-from backend.configs.exceptions import InvalidRequestError, NotFoundError, UnauthorizedError
+from backend.configs.exceptions import (
+    InvalidRequestError,
+    NotFoundError,
+    UnauthorizedError,
+    UpstreamError,
+)
 from backend.configs.logging import configure_logging
 from backend.configs.settings import get_settings
 from backend.managers import RuntimeManager
@@ -99,6 +104,11 @@ async def unauthorized_handler(request: Request, exc: UnauthorizedError) -> JSON
 @app.exception_handler(NotFoundError)
 async def not_found_handler(request: Request, exc: NotFoundError) -> JSONResponse:
     return JSONResponse(status_code=404, content={"detail": str(exc) or "Not found"})
+
+
+@app.exception_handler(UpstreamError)
+async def upstream_handler(request: Request, exc: UpstreamError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc) or "Upstream service failed"})
 
 
 # Include router

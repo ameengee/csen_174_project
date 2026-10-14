@@ -1,3 +1,6 @@
+# Explicit project name: the default (the folder name, "compose") collides with other repos.
+name: csen174
+
 services:
   api:
     build:
@@ -10,7 +13,7 @@ services:
       - ../env/.env.local
 
     ports:
-      - "8000:8000"
+      - "8001:8000"  # host 8000 is often taken by other local projects
 
     # Mount source so uvicorn --reload picks up edits without a rebuild.
     volumes:
@@ -37,7 +40,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"  # host 5432 is often taken by other local Postgres containers
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

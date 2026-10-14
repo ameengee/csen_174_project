@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # upload rejection gates
     auto_fail_all: bool = False
 
+    # OpenAI model for profile analysis; the API key comes from OPENAI_API_KEY via the SDK
+    openai_model: str = "gpt-5.5"
+
     model_config = SettingsConfigDict(
         case_sensitive=False,
     )
