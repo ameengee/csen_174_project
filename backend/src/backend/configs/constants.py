@@ -19,6 +19,5 @@ DB_RETRIES = 3
 # -----------------------------
 # Profile intake
 # -----------------------------
-MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # LinkedIn PDFs are small; data-export zips can be a few MB
-MAX_ZIP_MEMBER_BYTES = 2 * 1024 * 1024  # per CSV we keep, guards against zip bombs
+MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # LinkedIn profile PDFs are well under this
 PROFILE_ANALYSIS_MAX_TOKENS = 16000

@@ -3,8 +3,9 @@ from typing import Any
 
 from backend.configs.exceptions import InvalidRequestError
 
+
 def build_profile_content(data: bytes) -> list[dict[str, Any]]:
-    """Return OpenAI input content parts for an uploaded PDF or LinkedIn export zip."""
+    """Return OpenAI input content parts for an uploaded LinkedIn profile PDF."""
     if data.startswith(b"%PDF"):
         return [
             {
@@ -14,4 +15,4 @@ def build_profile_content(data: bytes) -> list[dict[str, Any]]:
                 + base64.b64encode(data).decode("ascii"),
             }
         ]
-    raise InvalidRequestError("Upload a LinkedIn profile PDF or the LinkedIn data export .zip")
+    raise InvalidRequestError("Upload your LinkedIn profile as a PDF")

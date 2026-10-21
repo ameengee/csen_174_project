@@ -83,8 +83,7 @@ class ProfileAnalysis(BaseModel):
 
 SYSTEM_PROMPT = """\
 You help people find jobs. You will receive someone's professional profile, usually their \
-LinkedIn profile as a PDF or as CSV files from LinkedIn's data export, sometimes with notes \
-they wrote themselves.
+LinkedIn profile as a PDF, sometimes with notes they wrote themselves.
 
 Do two things:
 
