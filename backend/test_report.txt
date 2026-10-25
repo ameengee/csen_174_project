@@ -1,0 +1,53 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.4, pytest-9.1.1, pluggy-1.7.0 -- /home/rush/csen174/csen_174_project/backend/venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/rush/csen174/csen_174_project/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 32 items
+
+tests/test_app_track.py::test_track_normal PASSED                        [  3%]
+tests/test_app_track.py::test_track_edge_single_char PASSED              [  6%]
+tests/test_app_track.py::test_job_invalid_none PASSED                    [  9%]
+tests/test_app_track.py::test_job_invalid_wrong_type PASSED              [ 12%]
+tests/test_app_track.py::test_track_invalid_large_input PASSED           [ 15%]
+tests/test_health.py::test_root PASSED                                   [ 18%]
+tests/test_health.py::test_healthz PASSED                                [ 21%]
+tests/test_health.py::test_ready_reports_unhealthy_when_db_down PASSED   [ 25%]
+tests/test_job_posting.py::test_job_normal PASSED                        [ 28%]
+tests/test_job_posting.py::test_job_edge_empty_title PASSED              [ 31%]
+tests/test_job_posting.py::test_job_invalid_none PASSED                  [ 34%]
+tests/test_job_posting.py::test_job_invalid_wrong_type PASSED            [ 37%]
+tests/test_job_posting.py::test_job_invalid_large_input PASSED           [ 40%]
+tests/test_profile.py::test_pdf_becomes_input_file PASSED                [ 43%]
+tests/test_profile.py::test_unknown_file_type_is_rejected PASSED         [ 46%]
+tests/test_profile.py::test_analyze_route PASSED                         [ 50%]
+tests/test_profile.py::test_analyze_route_rejects_bad_upload PASSED      [ 53%]
+tests/test_resume.py::test_resume_normal PASSED                          [ 56%]
+tests/test_resume.py::test_resume_edge_empty_text PASSED                 [ 59%]
+tests/test_resume.py::test_resume_invalid_none PASSED                    [ 62%]
+tests/test_resume.py::test_resume_invalid_wrong_type PASSED              [ 65%]
+tests/test_resume.py::test_resume_invalid_large_input PASSED             [ 68%]
+tests/test_support_ticket.py::test_ticket_normal PASSED                  [ 71%]
+tests/test_support_ticket.py::test_ticket_edge_empty_message PASSED      [ 75%]
+tests/test_support_ticket.py::test_ticket_invalid_none PASSED            [ 78%]
+tests/test_support_ticket.py::test_ticket_invalid_wrong_type PASSED      [ 81%]
+tests/test_support_ticket.py::test_ticket_invalid_large_input PASSED     [ 84%]
+tests/test_user.py::test_user_normal PASSED                              [ 87%]
+tests/test_user.py::test_user_edge_empty_string PASSED                   [ 90%]
+tests/test_user.py::test_user_invalid_none PASSED                        [ 93%]
+tests/test_user.py::test_user_invalid_wrong_type PASSED                  [ 96%]
+tests/test_user.py::test_user_invalid_large_input PASSED                 [100%]
+
+=============================== warnings summary ===============================
+tests/test_health.py::test_root
+tests/test_health.py::test_root
+tests/test_health.py::test_root
+tests/test_health.py::test_root
+  /home/rush/csen174/csen_174_project/backend/venv/lib/python3.14/site-packages/slowapi/extension.py:720: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    if asyncio.iscoroutinefunction(func):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 32 passed, 4 warnings in 0.63s ========================
