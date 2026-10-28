@@ -2,6 +2,8 @@ import asyncio
 
 import structlog
 
+from backend.database.schema import apply_schema
+
 from .llm import close_openai
 from .postgres import close_db_connections, get_pool
 
@@ -11,7 +13,7 @@ log = structlog.get_logger(__name__)
 async def init_clients() -> None:
     """Initialize all external service client singletons."""
     try:
-        await get_pool()
+        await apply_schema(await get_pool())
     except Exception:
         log.warning("postgres_init_failed_continuing_without_postgres")
 
