@@ -1,0 +1,6 @@
+# Lets `docker compose up --build` work from backend/: the API, Postgres, and a one-off job
+# that loads job listings into Postgres. The services are defined in docker/compose/.
+name: csen174
+
+include:
+  - docker/compose/docker-compose.local.yml

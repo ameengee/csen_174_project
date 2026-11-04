@@ -8,12 +8,14 @@ FastAPI service for the CSEN 174 project.
 
 ```bash
 cd backend
-cp docker/env/.env.example docker/env/.env.local   # already done once; edit as needed
-docker compose -f docker/compose/docker-compose.local.yml up --build
-curl http://localhost:8000/healthz
+cp docker/env/.env.example docker/env/.env.local   # then set OPENAI_API_KEY in it
+docker compose up --build                          # Ctrl+C to stop; `docker compose down` to remove
+curl http://localhost:8001/healthz
 ```
 
-This starts the API on `:8000` (with hot reload from `src/`) and Postgres on `:5432`.
+This starts the API on `:8001` (with hot reload from `src/`) and Postgres on `:5433`, and runs
+a one-off `job-sync` container that loads job listings into Postgres (`scripts/sync_jobs.py`).
+Then run `npm run dev` in `frontend/` and open the URL it prints.
 
 ### Without Docker
 

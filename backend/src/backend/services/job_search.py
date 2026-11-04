@@ -34,7 +34,7 @@ class RoleQuery(BaseModel):
 
 class JobSearchRequest(BaseModel):
     roles: list[RoleQuery] = Field(min_length=1, max_length=12)
-    level: Level
+    level: Level # internship, entry_level, mid_level, senior
     # Free-text preferences (answers to the onboarding questions, locations, ...)
     context: str = Field(default="", max_length=4000)
 
