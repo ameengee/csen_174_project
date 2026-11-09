@@ -3,6 +3,9 @@ import pytest
 class JobPosting:
     def __init__(self, company, title):
         if company is None: raise ValueError("None type not allowed")
+
+        if company == "": raise ValueError("Empty company not allowed")
+
         if type(title) is int: raise TypeError("Wrong value type")
         if len(title) > 500: raise ValueError("Large input not allowed")
         self.company = company
@@ -27,3 +30,7 @@ def test_job_invalid_wrong_type():
 def test_job_invalid_large_input():
     with pytest.raises(ValueError):
         JobPosting("Google", "A" * 1000)
+
+def test_job_invalid_empty_company():
+    with pytest.raises(ValueError):
+        JobPosting("", "Software Engineer")
