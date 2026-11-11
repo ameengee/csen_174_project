@@ -2,7 +2,7 @@ fastapi==0.115.0
 uvicorn[standard]==0.30.6
 slowapi==0.1.9
 
-pydantic==2.9.2
+pydantic[email]==2.9.2
 pydantic-settings==2.5.2
 
 asyncpg==0.30.0
@@ -12,3 +12,7 @@ structlog==24.4.0
 openai==3.31.0
 python-multipart==0.0.32
 httpx2==2.16.0
+
+# Auth (login PR)
+passlib[bcrypt]==1.7.4
+pyjwt==2.9.0
