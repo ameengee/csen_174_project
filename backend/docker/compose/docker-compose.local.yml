@@ -18,6 +18,7 @@ services:
     # Mount source so uvicorn --reload picks up edits without a rebuild.
     volumes:
       - ../../src:/app/src
+      - ../../scripts:/app/scripts
 
     depends_on:
       db:
@@ -31,6 +32,24 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
+
+  # One-off: fills the job_postings table each time the stack comes up, then exits.
+  job-sync:
+    build:
+      context: ../..
+      dockerfile: docker/dockerfiles/Dockerfile.local
+    image: csen174-backend:local
+    container_name: csen174-backend-job-sync
+    command: ["python", "scripts/sync_jobs.py"]
+    env_file:
+      - ../env/.env.local
+    volumes:
+      - ../../src:/app/src
+      - ../../scripts:/app/scripts
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
 
   db:
     image: postgres:16

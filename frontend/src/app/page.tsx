@@ -6,25 +6,64 @@ import styles from "./page.module.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
 const MAX_QUESTIONS = 3;
+const JOBS_SHOWN = 10; // per role, before "Show all"
 
-// The parts of the backend's ProfileAnalysis response this page uses; the rest passes through.
-type JobTarget = { name: string; why_it_fits: string };
+// The parts of the backend's ProfileAnalysis response this page uses.
+type JobTarget = { name: string; why_it_fits: string; example_titles: string[] };
 type Analysis = {
+  profile: { career_stage: string };
   job_targets: JobTarget[];
+  preferences: { locations: string[]; open_to_remote: boolean | null; notes: string[] };
   open_questions: string[];
-  [key: string]: unknown;
 };
-type Role = { name: string; why?: string; source: "suggested" | "added" };
-type Step = "upload" | "analyzing" | "questions" | "roles" | "done";
+type Role = { name: string; why?: string; exampleTitles: string[]; source: "suggested" | "added" };
+type Level = "internship" | "entry_level" | "mid_level" | "senior";
 
-const STEP_LABELS = ["Upload", "Questions", "Roles", "Done"];
+// The backend's JobSearchResponse.
+type JobResult = {
+  company: string;
+  title: string;
+  location: string;
+  url: string;
+  posted: string | null;
+  location_match: boolean;
+};
+type RoleResults = { role: string; jobs: JobResult[] };
+
+type Step = "upload" | "analyzing" | "questions" | "roles" | "searching" | "results";
+
+const STEP_LABELS = ["Upload", "Questions", "Roles", "Jobs"];
 const STEP_INDEX: Record<Step, number> = {
   upload: 0,
   analyzing: 0,
   questions: 1,
   roles: 2,
-  done: 3,
+  searching: 3,
+  results: 3,
 };
+
+const LEVELS: { value: Level; label: string }[] = [
+  { value: "internship", label: "Internship" },
+  { value: "entry_level", label: "Entry level / new grad" },
+  { value: "mid_level", label: "Mid level" },
+  { value: "senior", label: "Senior" },
+];
+
+const LEVEL_FOR_STAGE: Record<string, Level> = {
+  student: "internship",
+  entry_level: "entry_level",
+  mid_level: "mid_level",
+  senior: "senior",
+  executive: "senior",
+};
+
+function formatDate(iso: string | null) {
+  if (!iso) return null;
+  return new Date(`${iso}T00:00:00`).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function Home() {
   const [step, setStep] = useState<Step>("upload");
@@ -41,6 +80,11 @@ export default function Home() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [roles, setRoles] = useState<Role[]>([]);
   const [newRole, setNewRole] = useState("");
+  const [level, setLevel] = useState<Level>("internship");
+
+  // job search
+  const [results, setResults] = useState<RoleResults[]>([]);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   async function handleUpload(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -64,8 +108,14 @@ export default function Home() {
       setAnswers(qs.map(() => ""));
       setQuestionIndex(0);
       setRoles(
-        result.job_targets.map((t) => ({ name: t.name, why: t.why_it_fits, source: "suggested" })),
+        result.job_targets.map((t) => ({
+          name: t.name,
+          why: t.why_it_fits,
+          exampleTitles: t.example_titles,
+          source: "suggested",
+        })),
       );
+      setLevel(LEVEL_FOR_STAGE[result.profile.career_stage] ?? "entry_level");
       setStep(qs.length > 0 ? "questions" : "roles");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -83,9 +133,45 @@ export default function Home() {
     const name = newRole.trim();
     if (!name) return;
     if (!roles.some((r) => r.name.toLowerCase() === name.toLowerCase())) {
-      setRoles([...roles, { name, source: "added" }]);
+      setRoles([...roles, { name, exampleTitles: [], source: "added" }]);
     }
     setNewRole("");
+  }
+
+  // Free-text preferences for the job matcher: their answers plus what the profile said.
+  function searchContext() {
+    const lines = questions
+      .map((q, i) => (answers[i].trim() ? `Q: ${q}\nA: ${answers[i].trim()}` : ""))
+      .filter(Boolean);
+    const prefs = analysis?.preferences;
+    if (prefs?.locations.length) lines.push(`Preferred locations: ${prefs.locations.join(", ")}`);
+    if (prefs?.open_to_remote != null) lines.push(`Open to remote: ${prefs.open_to_remote}`);
+    if (notes.trim()) lines.push(`Notes: ${notes.trim()}`);
+    return lines.join("\n");
+  }
+
+  async function searchJobs() {
+    setError("");
+    setStep("searching");
+    try {
+      const res = await fetch(`${API_URL}/jobs/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level,
+          context: searchContext(),
+          roles: roles.map((r) => ({ name: r.name, example_titles: r.exampleTitles })),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? `Request failed (${res.status})`);
+      setResults(data.results as RoleResults[]);
+      setExpanded({});
+      setStep("results");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setStep("roles");
+    }
   }
 
   function startOver() {
@@ -93,17 +179,9 @@ export default function Home() {
     setFile(null);
     setNotes("");
     setAnalysis(null);
+    setResults([]);
     setError("");
   }
-
-  // What gets handed to the next backend step (job search) once it exists.
-  const finalPayload = analysis && {
-    ...analysis,
-    // Drop suggested targets the user removed, so job_targets and job_roles agree.
-    job_targets: analysis.job_targets.filter((t) => roles.some((r) => r.name === t.name)),
-    answers: questions.map((q, i) => ({ question: q, answer: answers[i].trim() || null })),
-    job_roles: roles.map(({ name, source }) => ({ name, source })),
-  };
 
   const current = STEP_INDEX[step];
 
@@ -246,6 +324,21 @@ export default function Home() {
                 Based on your profile. Remove any you don&apos;t want and add your own.
               </p>
 
+              <label className={styles.field}>
+                Level
+                <select
+                  className={styles.input}
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value as Level)}
+                >
+                  {LEVELS.map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               {roles.length === 0 ? (
                 <p className={styles.empty}>No roles yet. Add at least one below.</p>
               ) : (
@@ -285,6 +378,7 @@ export default function Home() {
                 </button>
               </form>
 
+              {error && <p className={styles.error}>{error}</p>}
               <div className={`${styles.actions} ${styles.actionsSplit}`}>
                 <button
                   type="button"
@@ -297,21 +391,78 @@ export default function Home() {
                   type="button"
                   className={styles.button}
                   disabled={roles.length === 0}
-                  onClick={() => setStep("done")}
+                  onClick={searchJobs}
                 >
-                  Submit
+                  Find jobs
                 </button>
               </div>
             </>
           )}
 
-          {step === "done" && (
-            <>
-              <h1 className={styles.title}>You&apos;re all set</h1>
+          {step === "searching" && (
+            <div className={styles.loading} role="status">
+              <div className={styles.spinner} />
+              <h1 className={styles.title}>Finding jobs…</h1>
               <p className={styles.subtitle}>
-                This is what we&apos;ll use to find jobs for you. Job search comes next.
+                Matching thousands of postings to your roles. This takes about 20 seconds.
               </p>
-              <pre className={styles.json}>{JSON.stringify(finalPayload, null, 2)}</pre>
+            </div>
+          )}
+
+          {step === "results" && (
+            <>
+              <h1 className={styles.title}>Jobs for you</h1>
+              <p className={styles.subtitle}>
+                {LEVELS.find((l) => l.value === level)?.label} roles, grouped by what you&apos;re
+                looking for. Jobs that match your location come first.
+              </p>
+
+              {results.map(({ role, jobs }) => {
+                const shown = expanded[role] ? jobs : jobs.slice(0, JOBS_SHOWN);
+                return (
+                  <section key={role} className={styles.resultSection}>
+                    <h2 className={styles.resultRole}>
+                      {role} <span className={styles.resultCount}>{jobs.length}</span>
+                    </h2>
+                    {jobs.length === 0 ? (
+                      <p className={styles.empty}>No open postings found for this role.</p>
+                    ) : (
+                      <ul className={styles.jobs}>
+                        {shown.map((job) => (
+                          <li key={job.url + job.location} className={styles.job}>
+                            <a
+                              className={styles.jobTitle}
+                              href={job.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {job.title}
+                            </a>
+                            <div className={styles.jobMeta}>
+                              <span className={styles.jobCompany}>{job.company}</span>
+                              <span>{job.location}</span>
+                              {job.posted && <span>{formatDate(job.posted)}</span>}
+                              {job.location_match && (
+                                <span className={styles.roleTag}>Location match</span>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {jobs.length > JOBS_SHOWN && (
+                      <button
+                        type="button"
+                        className={styles.linkButton}
+                        onClick={() => setExpanded({ ...expanded, [role]: !expanded[role] })}
+                      >
+                        {expanded[role] ? "Show fewer" : `Show all ${jobs.length}`}
+                      </button>
+                    )}
+                  </section>
+                );
+              })}
+
               <div className={`${styles.actions} ${styles.actionsSplit}`}>
                 <button type="button" className={styles.buttonGhost} onClick={() => setStep("roles")}>
                   Back

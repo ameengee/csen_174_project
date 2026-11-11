@@ -339,17 +339,72 @@
   margin-bottom: 20px;
 }
 
-/* ---------- done ---------- */
-.json {
-  font-family: var(--font-geist-mono), monospace;
+/* ---------- results ---------- */
+.resultSection {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+  margin-bottom: 24px;
+}
+
+.resultRole {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.resultCount {
   font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
+  font-weight: 600;
+  color: var(--muted);
   background: var(--canvas);
   border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.jobs {
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.job {
+  border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 14px;
-  max-height: 480px;
-  overflow: auto;
-  margin-bottom: 20px;
+  padding: 10px 14px;
+}
+
+.jobTitle {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.jobTitle:hover {
+  text-decoration: underline;
+}
+
+.jobMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.jobCompany {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.linkButton {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 8px 0 0;
+  cursor: pointer;
 }

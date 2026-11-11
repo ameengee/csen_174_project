@@ -11,3 +11,4 @@ structlog==24.4.0
 
 openai==3.31.0
 python-multipart==0.0.32
+httpx2==2.16.0
