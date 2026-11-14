@@ -1,0 +1,6 @@
+
+# Security and Auth packages added for Login PR
+passlib[bcrypt]
+pyjwt
+pydantic[email]
+google-generativeai

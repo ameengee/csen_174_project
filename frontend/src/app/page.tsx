@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useState, type SubmitEvent } from "react";
 import styles from "./page.module.css";
@@ -66,6 +68,14 @@ function formatDate(iso: string | null) {
 }
 
 export default function Home() {
+  const router = useRouter();
+  useEffect(() => {
+     if(!localStorage.getItem("access_token")){
+        router.replace("/login");
+     }
+  }, [router]);
+   
+
   const [step, setStep] = useState<Step>("upload");
   const [error, setError] = useState("");
 
@@ -188,6 +198,18 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
+        {/* --- EMBEDDED DASHBOARD HEADER --- */}
+        <div style={{ display: "flex", justifySelf: "stretch", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", padding: "0 10px" }}>
+          <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "bold" }}>Job Scraper</h2>
+          <button 
+            onClick={() => router.push("/tailor")} 
+            style={{ padding: "8px 16px", background: "#3B82F6", color: "white", borderRadius: "6px", cursor: "pointer", border: "none", fontSize: "14px", fontWeight: "600" }}
+          >
+            AI Resume Tailor →
+          </button>
+        </div>
+        {/* --------------------------------- */}
+
         <ol className={styles.steps} aria-label="Progress">
           {STEP_LABELS.map((label, i) => (
             <li

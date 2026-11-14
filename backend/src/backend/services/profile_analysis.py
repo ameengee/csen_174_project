@@ -105,6 +105,70 @@ does not answer, such as work authorization, relocation, or preferred locations.
 
 async def analyze_profile(content: list[dict[str, Any]], notes: str | None) -> ProfileAnalysis:
     """Extract a structured profile and a ranked list of job targets with an OpenAI model."""
+    if True:
+            return ProfileAnalysis(
+            profile=CandidateProfile(
+                name="Rushil Kumar",
+                headline="Computer Science & Mathematics Student",
+                location="Santa Clara, CA",
+                career_stage="student",
+                summary="CSE and Mathematics student with software engineering internship experience in Python, FastAPI, PostgreSQL, and C++.",
+                experiences=[
+                    Experience(
+                        title="Software Engineering Intern",
+                        organization="Resiligence",
+                        start="Jun 2026",
+                        end="Aug 2026",
+                        location="Fremont, CA",
+                        highlights=["Built asynchronous monitor crawler system in Python and PostgreSQL"],
+                    )
+                ],
+                education=[
+                    Education(
+                        school="Santa Clara University",
+                        degree="Bachelor of Science",
+                        field_of_study="Computer Science and Engineering & Mathematics",
+                        start="2024",
+                        end="2028",
+                        details=["3.56 GPA"],
+                    )
+                ],
+                skills=["Python", "C++", "FastAPI", "PostgreSQL", "React", "Next.js", "Docker"],
+                certifications=[],
+                other_accomplishments=[],
+            ),
+            job_targets=[
+                JobTarget(
+                    name="Software Engineer Intern",
+                    industry="Technology",
+                    seniority="internship",
+                    employment_type="internship",
+                    example_titles=["Software Engineer Intern", "Backend Engineering Intern"],
+                    search_keywords=["python", "software engineer", "backend", "intern"],
+                    why_it_fits="Matches prior backend software engineering internship and CSE coursework.",
+                ),
+                JobTarget(
+                    name="Full-Stack Developer Intern",
+                    industry="Technology",
+                    seniority="internship",
+                    employment_type="internship",
+                    example_titles=["Full Stack Intern", "Web Developer Intern"],
+                    search_keywords=["react", "typescript", "nextjs", "full stack"],
+                    why_it_fits="Matches experience building web apps with Next.js and FastAPI.",
+                ),
+            ],
+            preferences=SearchPreferences(
+                locations=["Santa Clara, CA", "San Jose, CA", "San Francisco, CA"],
+                open_to_remote=True,
+                notes=[notes] if notes else [],
+            ),
+            open_questions=[
+                "Are you only looking for Summer 2027 internships, or also part-time roles during the school year?",
+                "Are you open to relocating outside the Bay Area?",
+            ],
+        )
+
+
     user_content = [*content]
     if notes:
         user_content.append({"type": "input_text", "text": f"Notes from the person:\n{notes}"})
