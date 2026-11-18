@@ -8,7 +8,13 @@ import httpx2
 import structlog
 from pydantic import BaseModel
 
-from backend.configs.constants import MAX_COMPANY_BOARDS
+from backend.configs.constants import (
+    ADZUNA_COUNTRY,
+    ADZUNA_DISTANCE_KM,
+    ADZUNA_MAX_DAYS_OLD,
+    ADZUNA_RESULTS_PER_PAGE,
+    MAX_COMPANY_BOARDS,
+)
 
 log = structlog.get_logger(__name__)
 
@@ -24,6 +30,7 @@ NEW_GRAD_URL = (
 )
 GREENHOUSE_BOARD_URL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 GREENHOUSE_SLUG = re.compile(r"(?:boards|job-boards)\.greenhouse\.io/([A-Za-z0-9_-]+)")
+ADZUNA_SEARCH_URL = "https://api.adzuna.com/v1/api/jobs/{country}/search/{page}"
 
 # Title words that decide a Greenhouse job's level.
 SENIOR_TITLE = re.compile(r"\b(senior|sr\.?|staff|principal|lead)\b", re.I)
@@ -34,6 +41,18 @@ ENTRY_TITLE = re.compile(
 )
 EXCLUDED_TITLE = re.compile(
     r"\b(intern|internship|co-?op|director|head of|vp|vice president|chief|manager)\b", re.I
+)
+
+# Extra title words for sources outside tech (Adzuna covers every field).
+INTERN_TITLE = re.compile(r"\b(intern|internship|co-?op|extern|externship)\b", re.I)
+MANAGEMENT_TITLE = re.compile(
+    r"\b(director|head of|vp|vice president|chief|manager|supervisor)\b", re.I
+)
+# Outside tech, "Staff" means a regular position (Staff Accountant, Staff Nurse), not senior.
+NON_TECH_SENIOR_TITLE = re.compile(r"\b(senior|sr\.?|principal|lead)\b", re.I)
+TRAINEE_TITLE = re.compile(
+    r"\b(resident|residency|fellow|fellowship|apprentice|trainee|graduate nurse|new grad rn)\b",
+    re.I,
 )
 
 
@@ -143,4 +162,61 @@ def greenhouse_posting(job: dict[str, Any], level: Level) -> Posting:
         url=job["absolute_url"],
         posted=date.fromisoformat(published[:10]) if published else None,
         source="Greenhouse",
+    )
+
+
+# -----------------------------
+# Adzuna
+# -----------------------------
+
+
+async def fetch_adzuna(
+    client: httpx2.AsyncClient,
+    app_id: str,
+    app_key: str,
+    what: str,
+    where: str | None,
+    page: int,
+) -> list[dict[str, Any]]:
+    """One page of Adzuna search results for a query near a location."""
+    params: dict[str, str | int] = {
+        "app_id": app_id,
+        "app_key": app_key,
+        "what": what,
+        "results_per_page": ADZUNA_RESULTS_PER_PAGE,
+        "max_days_old": ADZUNA_MAX_DAYS_OLD,
+        "content-type": "application/json",
+    }
+    if where:
+        params |= {"where": where, "distance": ADZUNA_DISTANCE_KM}
+    response = await client.get(
+        ADZUNA_SEARCH_URL.format(country=ADZUNA_COUNTRY, page=page), params=params
+    )
+    response.raise_for_status()
+    results: list[dict[str, Any]] = response.json().get("results", [])
+    return results
+
+
+def title_level(title: str) -> Level:
+    """Level from any job title, for sources that don't state one. Managers count as senior."""
+    if INTERN_TITLE.search(title):
+        return "internship"
+    if NON_TECH_SENIOR_TITLE.search(title) or MANAGEMENT_TITLE.search(title):
+        return "senior"
+    if ENTRY_TITLE.search(title) or TRAINEE_TITLE.search(title):
+        return "entry_level"
+    return "mid_level"
+
+
+def adzuna_posting(job: dict[str, Any]) -> Posting:
+    created = job.get("created")
+    return Posting(
+        id=f"adzuna:{job['id']}",
+        level=title_level(job["title"]),
+        company=(job.get("company") or {}).get("display_name") or "Unknown company",
+        title=job["title"],
+        location=(job.get("location") or {}).get("display_name") or "Not listed",
+        url=job["redirect_url"],
+        posted=date.fromisoformat(created[:10]) if created else None,
+        source="Adzuna",
     )

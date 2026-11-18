@@ -2,22 +2,27 @@
 
 import asyncio
 import re
+from datetime import UTC, datetime, timedelta
 
+import httpx2
 import structlog
 from openai import APIError
 from pydantic import BaseModel, Field
 
-from backend.clients import get_openai
+from backend.clients import db_transaction, get_openai
 from backend.configs.constants import (
+    ADZUNA_KEEP_DAYS,
+    ADZUNA_PAGES_PER_ROLE,
     CLASSIFY_BATCH_SIZE,
     CLASSIFY_CONCURRENCY,
+    JOB_SOURCE_TIMEOUT,
     MAX_JOBS_PER_ROLE,
     MAX_SEARCH_CANDIDATES,
 )
 from backend.configs.exceptions import UpstreamError
 from backend.configs.settings import get_settings
-from backend.database.job_postings import list_postings
-from backend.services.job_sources import Job, Level
+from backend.database.job_postings import delete_unseen, list_postings, upsert_postings
+from backend.services.job_sources import Job, Level, adzuna_posting, fetch_adzuna
 
 log = structlog.get_logger(__name__)
 
@@ -34,9 +39,11 @@ class RoleQuery(BaseModel):
 
 class JobSearchRequest(BaseModel):
     roles: list[RoleQuery] = Field(min_length=1, max_length=12)
-    level: Level # internship, entry_level, mid_level, senior
+    level: Level  # internship, entry_level, mid_level, senior
     # Free-text preferences (answers to the onboarding questions, locations, ...)
     context: str = Field(default="", max_length=4000)
+    # Where to search, e.g. "San Jose, CA" or "California"; None searches the whole country
+    location: str | None = Field(default=None, max_length=200)
 
 
 class JobResult(Job):
@@ -137,13 +144,54 @@ async def _classify(
     return response.output_parsed.matches
 
 
+async def _add_adzuna_postings(request: JobSearchRequest) -> None:
+    """Search Adzuna for each role near the user and save the results, so any field is covered.
+
+    The GitHub lists and Greenhouse boards only cover tech; Adzuna covers every field and level.
+    Skipped when Adzuna isn't configured. A failed call only loses that call's results.
+    """
+    settings = get_settings()
+    if not (settings.adzuna_app_id and settings.adzuna_api_key):
+        return
+
+    async def search(client: httpx2.AsyncClient, what: str, page: int) -> list[dict]:
+        try:
+            return await fetch_adzuna(
+                client,
+                settings.adzuna_app_id,
+                settings.adzuna_api_key,
+                what,
+                request.location,
+                page,
+            )
+        except (httpx2.HTTPError, ValueError) as e:
+            log.warning("adzuna_search_failed", what=what, page=page, error=str(e))
+            return []
+
+    # Example titles read like real postings ("Hospitalist Physician"); role names are labels.
+    queries = [(r.example_titles or [r.name])[0] for r in request.roles]
+    async with httpx2.AsyncClient(timeout=JOB_SOURCE_TIMEOUT) as client:
+        pages = await asyncio.gather(
+            *(
+                search(client, what, page)
+                for what in queries
+                for page in range(1, ADZUNA_PAGES_PER_ROLE + 1)
+            )
+        )
+    postings = list({p.id: p for p in (adzuna_posting(j) for ps in pages for j in ps)}.values())
+
+    async with db_transaction() as conn:
+        await upsert_postings(conn, postings)
+        await delete_unseen(conn, "Adzuna", datetime.now(UTC) - timedelta(days=ADZUNA_KEEP_DAYS))
+    log.info("adzuna_saved", queries=queries, location=request.location, postings=len(postings))
+
+
 async def search_jobs(request: JobSearchRequest) -> JobSearchResponse:
     """Return listed jobs at the requested level, grouped by the role they fit."""
+    await _add_adzuna_postings(request)
     jobs = await list_postings(request.level)
     if not jobs:
-        raise UpstreamError(
-            "No job listings are loaded yet. Run: python scripts/sync_jobs.py"
-        )
+        raise UpstreamError("No job listings are loaded yet. Run: python scripts/sync_jobs.py")
 
     if request.level in ("internship", "entry_level"):
         # Research roles that require a PhD or Master's aren't open to these candidates.
@@ -178,12 +226,17 @@ async def search_jobs(request: JobSearchRequest) -> JobSearchResponse:
         raise UpstreamError("Couldn't match jobs right now. Try again.")
 
     grouped: dict[int, list[JobResult]] = {i: [] for i in range(len(request.roles))}
+    seen: set[tuple[str, str, str]] = set()  # the same posting can be listed more than once
     for m in matches:
         if m.role is None or not 1 <= m.role <= len(request.roles):
             continue
         if not 0 <= m.id < len(candidates):
             continue
         job = candidates[m.id]
+        key = (job.title.lower(), job.company.lower(), job.location.lower())
+        if key in seen:
+            continue
+        seen.add(key)
         grouped[m.role - 1].append(JobResult(**job.model_dump(), location_match=m.location_match))
 
     results = []

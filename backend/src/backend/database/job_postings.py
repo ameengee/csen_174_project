@@ -37,13 +37,18 @@ async def delete_unseen(conn: asyncpg.Connection, source: str, since: datetime) 
 
 
 async def list_postings(level: Level) -> list[Job]:
-    """All stored postings at a level, newest first."""
+    """All stored postings at a level, newest first.
+
+    Most non-tech postings (Adzuna) don't state a level, so their unmarked "mid_level" postings
+    are also offered to entry-level searches.
+    """
     async with db_transaction(readonly=True) as conn:
         rows = await conn.fetch(
             """
             SELECT company, title, location, url, posted, source
             FROM job_postings
             WHERE level = $1
+               OR ($1 = 'entry_level' AND source = 'Adzuna' AND level = 'mid_level')
             ORDER BY posted DESC NULLS LAST
             """,
             level,

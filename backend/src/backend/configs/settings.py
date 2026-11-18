@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     db_user: str = "postgres"
     db_pass: str = "postgres"
 
+    # Adzuna job search API (all fields and levels); job search skips Adzuna when unset
+    adzuna_app_id: str = ""
+    adzuna_api_key: str = ""
+
     # -----------------------------
     # Configs
     # -----------------------------

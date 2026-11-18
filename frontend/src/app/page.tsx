@@ -13,7 +13,7 @@ const JOBS_SHOWN = 10; // per role, before "Show all"
 // The parts of the backend's ProfileAnalysis response this page uses.
 type JobTarget = { name: string; why_it_fits: string; example_titles: string[] };
 type Analysis = {
-  profile: { career_stage: string };
+  profile: { career_stage: string; location: string | null };
   job_targets: JobTarget[];
   preferences: { locations: string[]; open_to_remote: boolean | null; notes: string[] };
   open_questions: string[];
@@ -170,6 +170,8 @@ export default function Home() {
         body: JSON.stringify({
           level,
           context: searchContext(),
+          // Where to search: their preferred location, else where their profile says they live.
+          location: analysis?.preferences.locations[0] ?? analysis?.profile.location ?? null,
           roles: roles.map((r) => ({ name: r.name, example_titles: r.exampleTitles })),
         }),
       });

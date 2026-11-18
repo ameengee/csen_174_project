@@ -11,7 +11,7 @@ from backend.services.job_search import (
     _keywords,
     search_jobs,
 )
-from backend.services.job_sources import Job, greenhouse_level
+from backend.services.job_sources import Job, adzuna_posting, greenhouse_level, title_level
 
 
 def _job(title: str, location: str = "San Jose, CA", posted: date = date(2026, 10, 1)) -> Job:
@@ -34,6 +34,40 @@ def _job(title: str, location: str = "San Jose, CA", posted: date = date(2026, 1
 )
 def test_greenhouse_level(title: str, level: str | None) -> None:
     assert greenhouse_level(title) == level
+
+
+@pytest.mark.parametrize(
+    ("title", "level"),
+    [
+        ("Registered Nurse - ICU", "mid_level"),
+        ("Charge Nurse, Med/Surg", "mid_level"),
+        ("Graduate Nurse Residency Program", "entry_level"),
+        ("Internal Medicine Resident", "entry_level"),
+        ("Nurse Manager, Emergency Department", "senior"),
+        ("Senior Accountant", "senior"),
+        ("Staff Accountant", "mid_level"),
+        ("Pharmacy Intern", "internship"),
+    ],
+)
+def test_title_level_covers_non_tech_titles(title: str, level: str) -> None:
+    assert title_level(title) == level
+
+
+def test_adzuna_posting() -> None:
+    posting = adzuna_posting(
+        {
+            "id": "5874770803",
+            "title": "Dialysis Registered Nurse",
+            "company": {"display_name": "Satellite Healthcare"},
+            "location": {"display_name": "San Jose, Santa Clara County"},
+            "redirect_url": "https://www.adzuna.com/land/ad/5874770803",
+            "created": "2026-09-07T17:35:48Z",
+        }
+    )
+    assert posting.id == "adzuna:5874770803"
+    assert posting.level == "mid_level"
+    assert posting.company == "Satellite Healthcare"
+    assert posting.posted == date(2026, 9, 7)
 
 
 def test_keywords_drop_generic_words() -> None:
@@ -62,6 +96,10 @@ async def test_search_groups_by_role_and_puts_location_matches_first(
             JobMatch(id=2, role=None, location_match=True),
         ]
 
+    async def _no_adzuna(request: JobSearchRequest) -> None:
+        return None
+
+    monkeypatch.setattr(job_search, "_add_adzuna_postings", _no_adzuna)
     monkeypatch.setattr(job_search, "list_postings", _list_postings)
     monkeypatch.setattr(job_search, "_classify", _classify)
 
