@@ -3,3 +3,4 @@
 passlib[bcrypt]
 pyjwt
 pydantic[email]
+google-generativeai

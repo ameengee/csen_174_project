@@ -14,3 +14,7 @@ black==24.8.0
 
 # Linting
 ruff==0.6.9
+passlib[bcrypt]
+pyjwt
+pydantic[email]
+google-generativeai
