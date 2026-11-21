@@ -1,8 +1,13 @@
+import asyncio
+import base64
+import json
+import os
 from typing import Any, Literal
 
+import google.generativeai as genai
 import structlog
 from openai import APIError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from backend.clients import get_openai
 from backend.configs.constants import PROFILE_ANALYSIS_MAX_TOKENS
@@ -103,71 +108,80 @@ Use open_questions for things that would meaningfully change the search and that
 does not answer, such as work authorization, relocation, or preferred locations."""
 
 
-async def analyze_profile(content: list[dict[str, Any]], notes: str | None) -> ProfileAnalysis:
-    """Extract a structured profile and a ranked list of job targets with an OpenAI model."""
-    if True:
-            return ProfileAnalysis(
-            profile=CandidateProfile(
-                name="Rushil Kumar",
-                headline="Computer Science & Mathematics Student",
-                location="Santa Clara, CA",
-                career_stage="student",
-                summary="CSE and Mathematics student with software engineering internship experience in Python, FastAPI, PostgreSQL, and C++.",
-                experiences=[
-                    Experience(
-                        title="Software Engineering Intern",
-                        organization="Resiligence",
-                        start="Jun 2026",
-                        end="Aug 2026",
-                        location="Fremont, CA",
-                        highlights=["Built asynchronous monitor crawler system in Python and PostgreSQL"],
-                    )
-                ],
-                education=[
-                    Education(
-                        school="Santa Clara University",
-                        degree="Bachelor of Science",
-                        field_of_study="Computer Science and Engineering & Mathematics",
-                        start="2024",
-                        end="2028",
-                        details=["3.56 GPA"],
-                    )
-                ],
-                skills=["Python", "C++", "FastAPI", "PostgreSQL", "React", "Next.js", "Docker"],
-                certifications=[],
-                other_accomplishments=[],
-            ),
-            job_targets=[
-                JobTarget(
-                    name="Software Engineer Intern",
-                    industry="Technology",
-                    seniority="internship",
-                    employment_type="internship",
-                    example_titles=["Software Engineer Intern", "Backend Engineering Intern"],
-                    search_keywords=["python", "software engineer", "backend", "intern"],
-                    why_it_fits="Matches prior backend software engineering internship and CSE coursework.",
-                ),
-                JobTarget(
-                    name="Full-Stack Developer Intern",
-                    industry="Technology",
-                    seniority="internship",
-                    employment_type="internship",
-                    example_titles=["Full Stack Intern", "Web Developer Intern"],
-                    search_keywords=["react", "typescript", "nextjs", "full stack"],
-                    why_it_fits="Matches experience building web apps with Next.js and FastAPI.",
-                ),
-            ],
-            preferences=SearchPreferences(
-                locations=["Santa Clara, CA", "San Jose, CA", "San Francisco, CA"],
-                open_to_remote=True,
-                notes=[notes] if notes else [],
-            ),
-            open_questions=[
-                "Are you only looking for Summer 2027 internships, or also part-time roles during the school year?",
-                "Are you open to relocating outside the Bay Area?",
-            ],
-        )
+def _decode_data_uri(value: str, default_mime: str) -> dict[str, Any]:
+    mime_type = default_mime
+    payload = value
+    if value.startswith("data:"):
+        header, _, payload = value.partition(",")
+        mime_part = header[5:].split(";", 1)[0]
+        if mime_part:
+            mime_type = mime_part
+    return {"mime_type": mime_type, "data": base64.b64decode(payload)}
 
+
+def _to_gemini_parts(content: list[dict[str, Any]], notes: str | None) -> list[Any]:
+    parts: list[Any] = []
+    for item in content:
+        item_type = item.get("type")
+        if item_type in ("input_text", "text") and item.get("text"):
+            parts.append(item["text"])
+        elif item_type == "input_file" and item.get("file_data"):
+            parts.append(_decode_data_uri(item["file_data"], "application/pdf"))
+        elif item_type == "input_image" and item.get("image_url"):
+            img = item["image_url"]
+            url = img["url"] if isinstance(img, dict) else img
+            parts.append(_decode_data_uri(url, "image/png"))
+
+    if notes:
+        parts.append(f"Notes from the person:\n{notes}")
+
+    schema_json = json.dumps(ProfileAnalysis.model_json_schema(), indent=2)
+    parts.append(
+        "Extract my profile and decide which jobs I should look for. "
+        "Return ONLY valid JSON matching this exact JSON schema "
+        "(use null for unknown nullable fields and [] for empty lists):\n"
+        f"{schema_json}"
+    )
+    return parts
+
+
+async def _analyze_with_gemini(
+    content: list[dict[str, Any]], notes: str | None, api_key: str
+) -> ProfileAnalysis:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        "gemini-2.5-flash",
+        system_instruction=SYSTEM_PROMPT,
+    )
+    parts = _to_gemini_parts(content, notes)
+
+    try:
+        response = await asyncio.to_thread(
+            model.generate_content,
+            parts,
+            generation_config={"response_mime_type": "application/json"},
+        )
+        raw_text = (response.text or "").strip()
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        parsed = ProfileAnalysis.model_validate_json(raw_text)
+    except (ValidationError, ValueError, Exception) as e:
+        log.error("profile_analysis_gemini_error", error_type=type(e).__name__, error=str(e))
+        raise UpstreamError("The profile could not be analyzed right now. Try again.") from e
+
+    log.info("profile_analysis_complete", model="gemini-2.5-flash")
+    return parsed
+
+
+async def analyze_profile(content: list[dict[str, Any]], notes: str | None) -> ProfileAnalysis:
+    """Extract a structured profile and a ranked list of job targets."""
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    if not openai_key:
+        if gemini_key:
+            return await _analyze_with_gemini(content, notes, gemini_key)
+        raise UpstreamError("No AI API key configured. Set GEMINI_API_KEY or OPENAI_API_KEY.")
 
     user_content = [*content]
     if notes:
