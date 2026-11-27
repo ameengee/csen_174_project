@@ -16,6 +16,3 @@ httpx2==2.16.0
 # Auth (login PR)
 passlib[bcrypt]==1.7.4
 pyjwt==2.9.0
-
-# AI Resume Tailor
-google-generativeai
