@@ -1,26 +1,28 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-import google.generativeai as genai
 import os
 
+import google.generativeai as genai
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel
 
+from backend.server.rate_limit import RateLimit, limiter
 
 router = APIRouter()
+
 
 class TailorRequest(BaseModel):
     resume: str
     job_description: str
 
+
 @router.post("/")
-async def tailor_resume(req: TailorRequest):
-    # For MVP testing, injecting the key directly. 
-    # (Before the final submission, can move this to .env file!)
+@limiter.limit(RateLimit.AI)
+async def tailor_resume(request: Request, req: TailorRequest):
     api_key = os.getenv("GEMINI_API_KEY")
-    
+
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
         prompt = f"""
         You are an expert technical recruiter. 
         Compare this master resume to the job description below. 
@@ -33,7 +35,7 @@ async def tailor_resume(req: TailorRequest):
         MASTER RESUME:
         {req.resume}
         """
-        
+
         response = model.generate_content(prompt)
         return {"tailored_text": response.text}
     except Exception as e:

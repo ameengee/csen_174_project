@@ -24,3 +24,5 @@ class RateLimit(StrEnum):
     HEALTH = "10000/minute" if _is_local else "60/minute"  # health check endpoint
     ROOT = "10000/minute" if _is_local else "30/minute"  # root endpoint
     DEFAULT = "10000/minute" if _is_local else "120/minute"  # everything else
+    AUTH = "10000/minute" if _is_local else "10/minute"  # login/register/reset (brute force)
+    AI = "10000/minute" if _is_local else "10/minute"  # endpoints that call a paid LLM API

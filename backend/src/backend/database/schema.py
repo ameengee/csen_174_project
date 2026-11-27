@@ -15,6 +15,14 @@ CREATE TABLE IF NOT EXISTS job_postings (
 );
 
 CREATE INDEX IF NOT EXISTS job_postings_level_posted ON job_postings (level, posted DESC);
+
+CREATE TABLE IF NOT EXISTS users (
+    email TEXT PRIMARY KEY,       -- stored lowercased
+    password_hash TEXT NOT NULL,
+    full_name TEXT,
+    verified BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 """
 
 

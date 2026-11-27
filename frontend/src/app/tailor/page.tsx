@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+
 export default function DashboardPage() {
   const router = useRouter();
   const [resume, setResume] = useState("");
@@ -36,7 +38,7 @@ export default function DashboardPage() {
     setCopied(false);
 
     try {
-      const response = await fetch("http://localhost:8001/api/tailor/", {
+      const response = await fetch(`${API_URL}/api/tailor/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resume, job_description: jobDescription }),

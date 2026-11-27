@@ -10,7 +10,7 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 
 
 @router.post("/analyze")
-@limiter.limit(RateLimit.DEFAULT)
+@limiter.limit(RateLimit.AI)
 async def analyze(
     request: Request,
     file: UploadFile = File(...),

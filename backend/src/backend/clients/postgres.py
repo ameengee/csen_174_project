@@ -1,4 +1,5 @@
 import asyncio
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -22,12 +23,20 @@ async def get_pool() -> asyncpg.Pool:
     async def _create_pool() -> asyncpg.Pool:
         """Create and validate asyncpg connection pool."""
         settings = get_settings()
+        if settings.database_url:
+            # asyncpg treats unknown query params as server settings; Neon adds channel_binding
+            dsn = re.sub(r"[?&]channel_binding=[^&]*", "", settings.database_url)
+            conn_args: dict[str, object] = {"dsn": dsn}
+        else:
+            conn_args = {
+                "host": settings.db_host,
+                "port": settings.db_port,
+                "user": settings.db_user,
+                "password": settings.db_pass,
+                "database": settings.db_name,
+            }
         pool = await asyncpg.create_pool(
-            host=settings.db_host,
-            port=settings.db_port,
-            user=settings.db_user,
-            password=settings.db_pass,
-            database=settings.db_name,
+            **conn_args,
             min_size=1,
             max_size=10,
             timeout=10,

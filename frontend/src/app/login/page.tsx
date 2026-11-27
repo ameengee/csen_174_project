@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8001";
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup" | "forgot" | "reset">("login");
@@ -38,7 +40,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const response = await fetch(`http://localhost:8001/api/auth/register`, {
+        const response = await fetch(`${API_URL}/api/auth/register`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password, full_name: fullName }),
         });
@@ -49,7 +51,7 @@ export default function LoginPage() {
         setPassword("");
         setConfirmPassword("");
       } else if (mode === "login") {
-        const response = await fetch(`http://localhost:8001/api/auth/login`, {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
         });
@@ -58,7 +60,7 @@ export default function LoginPage() {
         localStorage.setItem("access_token", data.access_token);
         router.push("/");
       } else if (mode === "forgot") {
-        const response = await fetch(`http://localhost:8001/api/auth/forgot-password`, {
+        const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
@@ -67,7 +69,7 @@ export default function LoginPage() {
         setMessage(data.message);
         setMode("login");
       } else if (mode === "reset") {
-        const response = await fetch(`http://localhost:8001/api/auth/reset-password`, {
+        const response = await fetch(`${API_URL}/api/auth/reset-password`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: resetToken, new_password: password }),
         });
