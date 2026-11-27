@@ -160,11 +160,11 @@ export default function Home() {
     return lines.join("\n");
   }
 
-  async function searchJobs() {
+  async function searchJobs(linkedin = false) {
     setError("");
     setStep("searching");
     try {
-      const res = await fetch(`${API_URL}/jobs/search`, {
+      const res = await fetch(`${API_URL}/jobs/${linkedin ? "linkedin" : "search"}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -175,12 +175,12 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail ?? `Request failed (${res.status})`);
-      setResults(data.results as RoleResults[]);
+      setResults(linkedin ? [...data.results, ...results.filter((r) => r.role !== "LinkedIn")] : data.results);
       setExpanded({});
       setStep("results");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-      setStep("roles");
+      setStep(linkedin ? "results" : "roles");
     }
   }
 
@@ -413,7 +413,7 @@ export default function Home() {
                   type="button"
                   className={styles.button}
                   disabled={roles.length === 0}
-                  onClick={searchJobs}
+                  onClick={() => searchJobs()}
                 >
                   Find jobs
                 </button>
@@ -426,7 +426,7 @@ export default function Home() {
               <div className={styles.spinner} />
               <h1 className={styles.title}>Finding jobs…</h1>
               <p className={styles.subtitle}>
-                Matching thousands of postings to your roles. This takes about 20 seconds.
+                Matching postings to your roles. LinkedIn searches take a couple minutes.
               </p>
             </div>
           )}
@@ -485,9 +485,13 @@ export default function Home() {
                 );
               })}
 
+              {error && <p className={styles.error}>{error}</p>}
               <div className={`${styles.actions} ${styles.actionsSplit}`}>
                 <button type="button" className={styles.buttonGhost} onClick={() => setStep("roles")}>
                   Back
+                </button>
+                <button type="button" className={styles.buttonGhost} onClick={() => searchJobs(true)}>
+                  Search LinkedIn
                 </button>
                 <button type="button" className={styles.button} onClick={startOver}>
                   Start over

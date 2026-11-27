@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 
 from backend.server.rate_limit import RateLimit, limiter
-from backend.services.job_search import JobSearchRequest, JobSearchResponse, search_jobs
+from backend.services.job_search import JobSearchRequest, JobSearchResponse, linkedin, search_jobs
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -11,3 +11,9 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 async def search(request: Request, body: JobSearchRequest) -> JobSearchResponse:
     """Find listed jobs at the chosen level, grouped by the roles they fit."""
     return await search_jobs(body)
+
+
+@router.post("/linkedin")
+@limiter.limit(RateLimit.DEFAULT)
+async def search_linkedin(request: Request, body: JobSearchRequest) -> JobSearchResponse:
+    return await linkedin(body)

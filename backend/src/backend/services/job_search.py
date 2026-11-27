@@ -1,7 +1,9 @@
 """Find listed jobs that match the user's chosen roles and level."""
 
 import asyncio
+import json
 import re
+from asyncio.subprocess import PIPE
 
 import structlog
 from openai import APIError
@@ -194,3 +196,17 @@ async def search_jobs(request: JobSearchRequest) -> JobSearchResponse:
         results.append(RoleResults(role=role.name, jobs=role_jobs[:MAX_JOBS_PER_ROLE]))
 
     return JobSearchResponse(level=request.level, jobs_considered=len(jobs), results=results)
+
+
+async def linkedin(request: JobSearchRequest) -> JobSearchResponse:
+    # claude -p + chrome (scripts/find_jobs.sh), only works w/ backend on host not docker
+    p = await asyncio.create_subprocess_exec("scripts/find_jobs.sh", "-", stdin=PIPE, stdout=PIPE)
+    out = (await p.communicate(request.model_dump_json().encode()))[0].decode()
+    try:
+        jobs = json.loads(out[out.find("[") : out.rfind("]") + 1])
+        jobs = [{**j, "posted": None, "source": "linkedin", "location_match": True} for j in jobs]
+        group = RoleResults(role="LinkedIn", jobs=jobs)
+    except (ValueError, TypeError) as e:
+        log.warning("linkedin_search_failed", output=out[-500:])
+        raise UpstreamError("LinkedIn search failed, is Chrome open w/ the extension connected?") from e
+    return JobSearchResponse(level=request.level, jobs_considered=len(jobs), results=[group])
